@@ -1,4 +1,4 @@
 # Local Netlify folder
 .netlify
 .env
-netlify/functions/exchange-rate.js
+netlify/functions/exchange-rate.js.env
