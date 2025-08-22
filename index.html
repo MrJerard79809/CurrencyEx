@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ForexTrack Pro | Live Currency Converter & Rates</title>
+  <meta name="description" content="Live foreign exchange rates and converter. Updated every 29 minutes." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+      --bg-secondary: rgba(255, 255, 255, 0.15);
+      --bg-card: rgba(255, 255, 255, 0.2);
+      --bg-rate-card: white;
+      --text-primary: #333;
+      --text-secondary: white;
+      --text-accent: #00d8ff;
+      --text-muted: #7f8c8d;
+      --text-header: white;
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --shadow-input: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    [data-theme="dark"] {
+      --bg-primary: linear-gradient(135deg, #1a1a1a 0%, #2c3e50 100%);
+      --bg-secondary: rgba(0, 0, 0, 0.3);
+      --bg-card: rgba(0, 0, 0, 0.4);
+      --bg-rate-card: #2c2c2c;
+      --text-primary: #e0e0e0;
+      --text-secondary: #d1d5db;
+      --text-accent: #00b4d8;
+      --text-muted: #a0a0a0;
+      --text-header: #e0e0e0;
+      --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+      --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.4);
+      --shadow-input: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    .app-container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      background: var(--bg-secondary);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 20px;
+      color: var(--text-header);
+      box-shadow: var(--shadow);
+    }
+
+    .logo h1 {
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .logo-accent {
+      color: var(--text-accent);
+    }
+
+    .logo p {
+      font-size: 14px;
+      opacity: 0.9;
+      margin-top: 4px;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      background: #4CAF50;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    #statusText {
+      font-size: 14px;
+    }
+
+    .theme-toggle {
+      background: none;
+      border: none;
+      color: var(--text-header);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 8px;
+    }
+
+    .theme-toggle:hover {
+      color: var(--text-accent);
+    }
+
+    .stats-panel {
+      display: flex;
+      justify-content: space-around;
+      background: var(--bg-card);
+      backdrop-filter: blur(8px);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+      color: var(--text-secondary);
+      box-shadow: var(--shadow);
+      flex-wrap: wrap;
+      gap: 20px;
+    }
+
+    .stat {
+      text-align: center;
+      min-width: 150px;
+    }
+
+    .stat label {
+      font-size: 12px;
+      opacity: 0.9;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .stat span {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .converter-section {
+      margin: 20px 0;
+    }
+
+    .converter-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(10px);
+      border-radius: 16px;
+      padding: 24px;
+      color: var(--text-secondary);
+      box-shadow: var(--shadow);
+    }
+
+    .converter-card h2 {
+      font-size: 20px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    .converter-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .amount-input input {
+      width: 100%;
+      padding: 16px;
+      font-size: 18px;
+      border: none;
+      border-radius: 8px;
+      text-align: center;
+      box-shadow: var(--shadow-input);
+      background: var(--bg-rate-card);
+      color: var(--text-primary);
+    }
+
+    .search-wrap {
+      position: relative;
+      flex: 3;
+      min-width: 200px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      box-shadow: var(--shadow-input);
+      background: var(--bg-rate-card);
+      color: var(--text-primary);
+    }
+
+    .currency-select {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      background: var(--bg-rate-card);
+      color: var(--text-primary);
+      margin-top: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: inherit;
+    }
+
+    .swap-button {
+      background: var(--text-accent);
+      color: var(--text-primary);
+      cursor: pointer;
+      font-weight: bold;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 20px;
+    }
+
+    .swap-button:hover {
+      background: #00c0e0;
+    }
+
+    .result {
+      font-size: 26px;
+      font-weight: 600;
+      text-align: center;
+      color: var(--text-accent);
+      padding: 18px;
+      background: var(--bg-secondary);
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+
+    .rates-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px;
+      flex-grow: 1;
+      margin-bottom: 30px;
+    }
+
+    .rate-card {
+      background: var(--bg-rate-card);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      box-shadow: var(--shadow-card);
+      position: relative;
+    }
+
+    .rate-card h3 {
+      font-size: 18px;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    .rate-value {
+      font-size: 22px;
+      font-weight: 600;
+      color: #2575fc;
+    }
+
+    .rate-updated {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    .loading, .no-rates {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 40px;
+      font-size: 18px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .footer {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-top: auto;
+      opacity: 0.8;
+    }
+
+    .footer p {
+      margin: 6px 0;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      border-radius: 8px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 1000;
+    }
+
+    .toast.error {
+      background: #e74c3c;
+    }
+
+    .toast.show {
+      opacity: 1;
+    }
+
+    @media (max-width: 768px) {
+      .converter-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .amount-input, .search-wrap {
+        width: 100%;
+      }
+      .swap-button {
+        align-self: center;
+      }
+      .stats-panel {
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header class="header">
+      <div class="logo">
+        <h1 id="logoTitle">ForexTrack<span class="logo-accent">Pro</span></h1>
+        <p id="logoSubtitle">Real-Time Currency Exchange Monitoring</p>
+      </div>
+      <div class="status-bar">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Monitoring</span>
+        <button class="theme-toggle" id="themeToggle">☀️</button>
+      </div>
+    </header>
+
+    <section class="stats-panel">
+      <div class="stat">
+        <label id="lastUpdateLabel">Last Update</label>
+        <span id="lastUpdate">Never</span>
+      </div>
+      <div class="stat">
+        <label id="nextUpdateLabel">Next Update</label>
+        <span id="countdown">-</span>
+      </div>
+    </section>
+
+    <section class="converter-section">
+      <div class="converter-card">
+        <h2 id="converterTitle">💱 Currency Converter</h2>
+        <div class="converter-row">
+          <div class="amount-input">
+            <input type="number" id="amount" placeholder="Enter amount" value="1" min="0" step="any" />
+          </div>
+
+          <div class="search-wrap">
+            <input type="text" id="fromCurrencySearch" class="search-input" placeholder="Search currency..." />
+            <select id="fromCurrency" class="currency-select"></select>
+          </div>
+
+          <button id="swapBtn" class="swap-button">↔️</button>
+
+          <div class="search-wrap">
+            <input type="text" id="toCurrencySearch" class="search-input" placeholder="Search currency..." />
+            <select id="toCurrency" class="currency-select"></select>
+          </div>
+        </div>
+
+        <div class="result" id="convertResult">= 1.00 USD</div>
+      </div>
+    </section>
+
+    <main class="rates-container" id="ratesContainer">
+      <div class="loading" id="loadingText">🔄 Loading all currency rates...</div>
+    </main>
+
+    <footer class="footer">
+      <p id="footerCopyright">© <span id="year">2025</span> ForexTrack Pro. All rights reserved.</p>
+      <p id="footerDataInfo">Data updated every 29 minutes • Secure API Proxy</p>
+    </footer>
+
+    <div id="errorToast" class="toast error">Error</div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
