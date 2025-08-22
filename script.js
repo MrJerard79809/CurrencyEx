@@ -1,5 +1,5 @@
-const UPDATE_INTERVAL_MS = 29 * 60 * 1000;
 const API_BASE_URL = '/.netlify/functions/exchange-rate';
+const UPDATE_INTERVAL_MS = 29 * 60 * 1000;
 const DAILY_LIMIT = 50;
 const MONTHLY_LIMIT = 1500;
 const DEBOUNCE_MS = 300;
@@ -12,7 +12,6 @@ const KEYS = {
   lastResetDay: 'forex_last_reset_day',
   lastResetMonth: 'forex_last_reset_month',
   lastUpdate: 'forex_last_update',
-  lastUpdateDisplay: 'forex_last_update_display',
   allRates: 'forex_cached_rates',
   nextUpdate: 'forex_next_update',
   theme: 'forex_theme',
@@ -204,16 +203,38 @@ const DOMElements = {
 };
 
 const Utils = {
-  formatTime: (date) => {
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      timeZone: 'UTC',
-    });
+  formatTime: (timestamp) => {
+    // Ensure we have a valid timestamp
+    const ts = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp;
+    
+    if (!ts || isNaN(ts) || ts <= 0) {
+      console.warn('Invalid timestamp in formatTime:', timestamp);
+      return 'Never';
+    }
+
+    const date = new Date(ts);
+    
+    if (isNaN(date.getTime())) {
+      console.warn('Invalid date created from timestamp:', ts);
+      return 'Never';
+    }
+
+    try {
+      // Use local timezone instead of UTC
+      return date.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Never';
+    }
   },
+  
   showError: (message) => {
     if (DOMElements.errorToast && DOMElements.errorToastMessage) {
       DOMElements.errorToastMessage.textContent = message;
@@ -223,24 +244,37 @@ const Utils = {
       console.warn('Error toast elements not found:', message);
     }
   },
+  
   hideError: () => {
     if (DOMElements.errorToast) {
       DOMElements.errorToast.classList.remove('show');
     }
   },
+  
   saveToLocalStorage: (key, value) => {
     try {
-      localStorage.setItem(key, value);
+      localStorage.setItem(key, String(value));
     } catch (e) {
-      console.warn('Failed to save to localStorage:', e.message);
+      console.warn('Failed to save to localStorage:', key, e.message);
     }
   },
+  
   getFromLocalStorage: (key) => {
     try {
       return localStorage.getItem(key);
     } catch (e) {
-      console.warn('Failed to read from localStorage:', e.message);
+      console.warn('Failed to read from localStorage:', key, e.message);
       return null;
+    }
+  },
+  
+  clearTimestampData: () => {
+    try {
+      localStorage.removeItem(KEYS.lastUpdate);
+      localStorage.removeItem(KEYS.nextUpdate);
+      console.log('Cleared timestamp data from localStorage');
+    } catch (e) {
+      console.warn('Failed to clear localStorage:', e.message);
     }
   },
 };
@@ -251,6 +285,7 @@ function initApp() {
   const today = utcNow.toISOString().split('T')[0];
   const month = utcNow.toISOString().slice(0, 7);
 
+  // Reset daily count if new day
   const lastResetDay = Utils.getFromLocalStorage(KEYS.lastResetDay);
   if (lastResetDay !== today) {
     dailyCount = 0;
@@ -260,6 +295,7 @@ function initApp() {
     dailyCount = parseInt(Utils.getFromLocalStorage(KEYS.dailyCount) || '0', 10);
   }
 
+  // Reset monthly count if new month
   const lastResetMonth = Utils.getFromLocalStorage(KEYS.lastResetMonth);
   if (lastResetMonth !== month) {
     monthlyCount = 0;
@@ -269,6 +305,7 @@ function initApp() {
     monthlyCount = parseInt(Utils.getFromLocalStorage(KEYS.monthlyCount) || '0', 10);
   }
 
+  // Load cached rates
   const savedRates = Utils.getFromLocalStorage(KEYS.allRates);
   if (savedRates) {
     try {
@@ -286,20 +323,59 @@ function initApp() {
       Utils.saveToLocalStorage(KEYS.allRates, JSON.stringify({}));
     }
   }
-
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const savedTheme = Utils.getFromLocalStorage(KEYS.theme) || (prefersDark ? 'dark' : 'light');
-  document.documentElement.setAttribute('data-theme', savedTheme);
-  updateThemeToggle(savedTheme);
 }
 
-function updateLastUpdated() {
-  const now = new Date();
-  const formatted = Utils.formatTime(now);
-  Utils.saveToLocalStorage(KEYS.lastUpdate, now.toISOString());
-  Utils.saveToLocalStorage(KEYS.lastUpdateDisplay, formatted);
+function updateLastUpdated(timestamp) {
+  // Ensure timestamp is a valid number
+  let validTimestamp;
+  
+  if (typeof timestamp === 'string') {
+    validTimestamp = parseInt(timestamp, 10);
+  } else if (typeof timestamp === 'number') {
+    validTimestamp = timestamp;
+  } else {
+    validTimestamp = Date.now();
+  }
+  
+  // Validate timestamp
+  if (isNaN(validTimestamp) || validTimestamp <= 0) {
+    console.warn('Invalid timestamp provided, using current time:', timestamp);
+    validTimestamp = Date.now();
+  }
+  
+  // Save to localStorage
+  Utils.saveToLocalStorage(KEYS.lastUpdate, validTimestamp.toString());
+  
+  // Format and display
+  const formatted = Utils.formatTime(validTimestamp);
+  
   if (DOMElements.lastUpdate) {
     DOMElements.lastUpdate.textContent = formatted;
+    console.log('Updated Last Update display:', formatted, '(Timestamp:', validTimestamp, ')');
+  } else {
+    console.warn('lastUpdate DOM element not found');
+  }
+}
+
+function loadLastUpdateFromStorage() {
+  const savedTimestamp = Utils.getFromLocalStorage(KEYS.lastUpdate);
+  
+  if (savedTimestamp) {
+    const timestamp = parseInt(savedTimestamp, 10);
+    if (!isNaN(timestamp) && timestamp > 0) {
+      const formatted = Utils.formatTime(timestamp);
+      if (DOMElements.lastUpdate) {
+        DOMElements.lastUpdate.textContent = formatted;
+        console.log('Loaded last update from storage:', formatted);
+        return;
+      }
+    }
+  }
+  
+  // Default to "Never" if no valid timestamp
+  if (DOMElements.lastUpdate) {
+    DOMElements.lastUpdate.textContent = 'Never';
+    console.log('No valid last update timestamp found, set to "Never"');
   }
 }
 
@@ -349,14 +425,12 @@ function displayNoRates() {
 }
 
 function populateCurrencies(selectedValueFrom, selectedValueTo) {
-  const { fromCurrency, toCurrency, fromCurrencySearch, toCurrencySearch } = DOMElements;
+  const { fromCurrency, toCurrency } = DOMElements;
   if (!fromCurrency || !toCurrency) return;
 
   const codes = ['USD', ...Object.keys(allRates).filter((code) => code !== 'USD').sort()];
 
   function fillSelect(select, selectedValue) {
-    const currentValue = select.value;
-    if (currentValue === selectedValue && select.options.length > 0) return;
     select.innerHTML = '';
     const fragment = document.createDocumentFragment();
     codes.forEach((code) => {
@@ -374,38 +448,6 @@ function populateCurrencies(selectedValueFrom, selectedValueTo) {
   fillSelect(fromCurrency, selectedValueFrom || fromCurrency.value || 'USD');
   fillSelect(toCurrency, selectedValueTo || toCurrency.value || 'EUR');
   convertCurrency();
-
-  function filterCurrencies(input, select) {
-    const filter = input.value.toLowerCase().trim();
-    const selectedValue = select.value;
-    select.innerHTML = '';
-    const filteredCodes = codes.filter(
-      (code) => code.toLowerCase().includes(filter) || (CURRENCY_NAMES[code] || '').toLowerCase().includes(filter)
-    );
-    const fragment = document.createDocumentFragment();
-    filteredCodes.forEach((code) => {
-      const option = document.createElement('option');
-      option.value = code;
-      option.textContent = `${code} - ${CURRENCY_NAMES[code] || code}`;
-      fragment.appendChild(option);
-    });
-    select.appendChild(fragment);
-    select.value = filteredCodes.includes(selectedValue) ? selectedValue : filteredCodes[0] || '';
-    convertCurrency();
-  }
-
-  if (fromCurrencySearch) {
-    fromCurrencySearch.addEventListener('input', () => {
-      clearTimeout(debounceTimeout);
-      debounceTimeout = setTimeout(() => filterCurrencies(fromCurrencySearch, fromCurrency), DEBOUNCE_MS);
-    }, { once: true });
-  }
-  if (toCurrencySearch) {
-    toCurrencySearch.addEventListener('input', () => {
-      clearTimeout(debounceTimeout);
-      debounceTimeout = setTimeout(() => filterCurrencies(toCurrencySearch, toCurrency), DEBOUNCE_MS);
-    }, { once: true });
-  }
 }
 
 async function fetchRates(retryCount = 0) {
@@ -421,8 +463,7 @@ async function fetchRates(retryCount = 0) {
 
   try {
     const response = await fetch(API_BASE_URL, { signal: AbortSignal.timeout(5000) });
-    
-    // Check for non-JSON response (e.g., HTML error page)
+
     const contentType = response.headers.get('content-type');
     if (!contentType || !contentType.includes('application/json')) {
       const text = await response.text();
@@ -445,6 +486,7 @@ async function fetchRates(retryCount = 0) {
       throw new Error('Invalid rates data received');
     }
 
+    // Process rates
     allRates = Object.keys(data.rates).reduce((acc, code) => {
       const rate = parseFloat(data.rates[code]);
       if (Number.isFinite(rate) && rate > 0) {
@@ -457,19 +499,45 @@ async function fetchRates(retryCount = 0) {
       throw new Error('No valid rates received');
     }
 
+    // Update usage counters
     dailyCount++;
     monthlyCount++;
     Utils.saveToLocalStorage(KEYS.dailyCount, dailyCount.toString());
     Utils.saveToLocalStorage(KEYS.monthlyCount, monthlyCount.toString());
     Utils.saveToLocalStorage(KEYS.allRates, JSON.stringify(allRates));
 
-    const nextUpdate = Date.now() + UPDATE_INTERVAL_MS;
-    Utils.saveToLocalStorage(KEYS.nextUpdate, nextUpdate.toString());
+    // Handle timestamp - prioritize server timestamp, fallback to current time
+    const now = Date.now();
+    let updateTimestamp = now;
+    
+    if (data.last_updated) {
+      const serverTimestamp = parseInt(data.last_updated, 10);
+      if (!isNaN(serverTimestamp) && serverTimestamp > 0) {
+        updateTimestamp = serverTimestamp;
+        console.log('Using server timestamp:', updateTimestamp);
+      } else {
+        console.warn('Invalid server timestamp, using current time:', data.last_updated);
+      }
+    } else {
+      console.log('No server timestamp provided, using current time');
+    }
 
-    updateLastUpdated();
+    // Update last updated time
+    updateLastUpdated(updateTimestamp);
+
+    // Set next update time
+    const nextUpdate = now + UPDATE_INTERVAL_MS;
+    Utils.saveToLocalStorage(KEYS.nextUpdate, nextUpdate.toString());
+    console.log('Next update scheduled for:', new Date(nextUpdate).toISOString());
+
+    // Update UI
     displayAllRates();
     populateCurrencies(DOMElements.fromCurrency?.value, DOMElements.toCurrency?.value);
     startCountdown();
+    
+    // Hide any existing errors
+    Utils.hideError();
+    
   } catch (error) {
     console.error('Fetch rates error:', {
       message: error.message,
@@ -478,7 +546,6 @@ async function fetchRates(retryCount = 0) {
       timestamp: new Date().toISOString(),
     });
 
-    // Skip retries for non-recoverable errors
     if (retryCount < MAX_RETRIES && error.name !== 'TimeoutError' && !error.message.includes('404') && !error.message.includes('429')) {
       const delay = BASE_RETRY_DELAY_MS * Math.pow(2, retryCount);
       console.log(`Retrying fetchRates (${retryCount + 1}/${MAX_RETRIES}) after ${delay}ms...`);
@@ -501,37 +568,61 @@ async function fetchRates(retryCount = 0) {
 }
 
 function startCountdown() {
-  if (countdownInterval) clearInterval(countdownInterval);
-  const nextUpdate = parseInt(Utils.getFromLocalStorage(KEYS.nextUpdate) || '0');
-  const now = Date.now();
-
-  if (nextUpdate <= now) {
-    fetchRates();
-  } else {
-    countdownInterval = setInterval(() => {
-      const diff = nextUpdate - Date.now();
-      if (diff <= 0) {
-        if (DOMElements.countdown) {
-          DOMElements.countdown.textContent = 'Refreshing...';
-        }
-        clearInterval(countdownInterval);
-        fetchRates();
-        return;
-      }
-      const minutes = Math.floor(diff / 60000);
-      const seconds = Math.floor((diff % 60000) / 1000);
-      if (DOMElements.countdown) {
-        DOMElements.countdown.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-      }
-    }, 1000);
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
   }
+  
+  const nextUpdateStr = Utils.getFromLocalStorage(KEYS.nextUpdate);
+  const now = Date.now();
+  
+  if (!nextUpdateStr) {
+    console.log('No next update time found, fetching rates...');
+    fetchRates();
+    return;
+  }
+  
+  const nextUpdate = parseInt(nextUpdateStr, 10);
+  
+  if (isNaN(nextUpdate) || nextUpdate <= now) {
+    console.log('Next update time expired or invalid, fetching rates...');
+    Utils.clearTimestampData();
+    fetchRates();
+    return;
+  }
+
+  console.log('Starting countdown. Next update:', new Date(nextUpdate).toISOString());
+  
+  countdownInterval = setInterval(() => {
+    const now = Date.now();
+    const diff = nextUpdate - now;
+    
+    if (diff <= 0) {
+      if (DOMElements.countdown) {
+        DOMElements.countdown.textContent = 'Refreshing...';
+      }
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+      console.log('Countdown completed, fetching rates...');
+      Utils.clearTimestampData();
+      fetchRates();
+      return;
+    }
+    
+    const minutes = Math.floor(diff / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+    
+    if (DOMElements.countdown) {
+      DOMElements.countdown.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+  }, 1000);
 }
 
 function convertCurrency() {
   const { amount, fromCurrency, toCurrency, convertResult } = DOMElements;
   if (!amount || !fromCurrency || !toCurrency || !convertResult) return;
 
-  const valAmount = parseFloat(amount.value) || 0;
+  const valAmount = parseFloat(amount.value);
   if (!Number.isFinite(valAmount) || valAmount <= 0) {
     convertResult.textContent = 'Enter a positive amount';
     convertResult.setAttribute('aria-invalid', 'true');
@@ -541,14 +632,21 @@ function convertCurrency() {
   const from = fromCurrency.value;
   const to = toCurrency.value;
 
-  if (!from || !to || !allRates[from] || !allRates[to]) {
+  if (!from || !to) {
     convertResult.textContent = 'Select valid currencies';
     convertResult.setAttribute('aria-invalid', 'true');
     return;
   }
 
+  // Handle USD conversions
   const fromRate = from === 'USD' ? 1 : allRates[from];
   const toRate = to === 'USD' ? 1 : allRates[to];
+
+  if ((from !== 'USD' && !fromRate) || (to !== 'USD' && !toRate)) {
+    convertResult.textContent = 'Currency rate not available';
+    convertResult.setAttribute('aria-invalid', 'true');
+    return;
+  }
 
   if (!Number.isFinite(fromRate) || !Number.isFinite(toRate) || fromRate <= 0 || toRate <= 0) {
     convertResult.textContent = 'Invalid rate data';
@@ -578,12 +676,15 @@ function swapCurrencies() {
   const fromSearchValue = fromCurrencySearch?.value || '';
   const toSearchValue = toCurrencySearch?.value || '';
 
+  // Swap select values and search input values
   fromCurrency.value = toValue;
   toCurrency.value = fromValue;
   if (fromCurrencySearch) fromCurrencySearch.value = toSearchValue;
   if (toCurrencySearch) toCurrencySearch.value = fromSearchValue;
-
+  
+  // Re-run the conversion with the new values
   convertCurrency();
+
   isSwapping = false;
   if (DOMElements.swapBtn) DOMElements.swapBtn.disabled = false;
 }
@@ -597,7 +698,7 @@ function toggleTheme() {
 }
 
 function setupEventListeners() {
-  const { amount, fromCurrency, toCurrency, swapBtn, themeToggle, dismissToast } = DOMElements;
+  const { amount, fromCurrency, toCurrency, fromCurrencySearch, toCurrencySearch, swapBtn, themeToggle, dismissToast } = DOMElements;
 
   if (amount) {
     amount.addEventListener('input', () => {
@@ -607,41 +708,102 @@ function setupEventListeners() {
   }
   if (fromCurrency) fromCurrency.addEventListener('change', convertCurrency);
   if (toCurrency) toCurrency.addEventListener('change', convertCurrency);
+  if (fromCurrencySearch) {
+    fromCurrencySearch.addEventListener('input', () => {
+      clearTimeout(debounceTimeout);
+      debounceTimeout = setTimeout(() => filterCurrencies(fromCurrencySearch, fromCurrency), DEBOUNCE_MS);
+    });
+  }
+  if (toCurrencySearch) {
+    toCurrencySearch.addEventListener('input', () => {
+      clearTimeout(debounceTimeout);
+      debounceTimeout = setTimeout(() => filterCurrencies(toCurrencySearch, toCurrency), DEBOUNCE_MS);
+    });
+  }
   if (swapBtn) swapBtn.addEventListener('click', swapCurrencies);
   if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
   if (dismissToast) dismissToast.addEventListener('click', Utils.hideError);
 
   window.addEventListener('beforeunload', () => {
-    if (countdownInterval) clearInterval(countdownInterval);
+    if (countdownInterval) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+    }
   });
 }
 
+function filterCurrencies(input, select) {
+  const filter = input.value.toLowerCase().trim();
+  const codes = ['USD', ...Object.keys(allRates).filter((code) => code !== 'USD').sort()];
+  const selectedValue = select.value;
+  select.innerHTML = '';
+  const filteredCodes = codes.filter(
+    (code) => code.toLowerCase().includes(filter) || (CURRENCY_NAMES[code] || '').toLowerCase().includes(filter)
+  );
+  const fragment = document.createDocumentFragment();
+  filteredCodes.forEach((code) => {
+    const option = document.createElement('option');
+    option.value = code;
+    option.textContent = `${code} - ${CURRENCY_NAMES[code] || code}`;
+    fragment.appendChild(option);
+  });
+  select.appendChild(fragment);
+  select.value = filteredCodes.includes(selectedValue) ? selectedValue : filteredCodes[0] || '';
+  convertCurrency();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
-  const { year, lastUpdate } = DOMElements;
+  const { year } = DOMElements;
   if (year) {
     year.textContent = new Date().getFullYear();
   }
 
-  const savedLastUpdate = Utils.getFromLocalStorage(KEYS.lastUpdateDisplay);
-  if (lastUpdate && savedLastUpdate) {
-    lastUpdate.textContent = savedLastUpdate;
-  }
-
+  // Initialize the app
   initApp();
   setupEventListeners();
 
+  // Check if we have cached data and if it's still valid
   const savedRates = Utils.getFromLocalStorage(KEYS.allRates);
-  const nextUpdate = parseInt(Utils.getFromLocalStorage(KEYS.nextUpdate) || '0');
+  const nextUpdateStr = Utils.getFromLocalStorage(KEYS.nextUpdate);
+  const now = Date.now();
+  
+  // Load the last update time from storage first
+  loadLastUpdateFromStorage();
 
+  // Determine if we should use cached data or fetch fresh data
   if (savedRates && Object.keys(allRates).length > 0) {
-    displayAllRates();
-    populateCurrencies();
-    if (nextUpdate > Date.now()) {
+    const nextUpdate = parseInt(nextUpdateStr, 10);
+    
+    if (!isNaN(nextUpdate) && nextUpdate > now) {
+      // We have valid cached data and the update time hasn't expired
+      console.log('Using cached data. Next update:', new Date(nextUpdate).toISOString());
+      displayAllRates();
+      populateCurrencies();
       startCountdown();
     } else {
+      // Cached data exists but update time has expired
+      console.log('Cached data expired or invalid next update time, fetching fresh rates...');
+      Utils.clearTimestampData();
       fetchRates();
     }
   } else {
+    // No cached data available
+    console.log('No cached rates found, fetching fresh rates...');
+    Utils.clearTimestampData();
     fetchRates();
+  }
+
+  // Load and apply saved theme
+  const savedTheme = Utils.getFromLocalStorage(KEYS.theme);
+  if (savedTheme && (savedTheme === 'light' || savedTheme === 'dark')) {
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeToggle(savedTheme);
+  } else {
+    // Default theme handling
+    const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const defaultTheme = prefersDark ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', defaultTheme);
+    updateThemeToggle(defaultTheme);
+    Utils.saveToLocalStorage(KEYS.theme, defaultTheme);
   }
 });
