@@ -1,4 +1,4 @@
-     const UPDATE_INTERVAL_MS = 29 * 60 * 1000;
+    const UPDATE_INTERVAL_MS = 29 * 60 * 1000;
     const API_BASE_URL = '/.netlify/functions/exchange-rate';
     const DAILY_LIMIT = 50;
     const MONTHLY_LIMIT = 1500;
@@ -185,7 +185,6 @@
       const today = utcNow.toISOString().split('T')[0];
       const month = utcNow.toISOString().slice(0, 7);
 
-      // Initialize daily count
       const storedDailyCount = localStorage.getItem(KEYS.dailyCount);
       const lastResetDay = localStorage.getItem(KEYS.lastResetDay);
       if (lastResetDay !== today) {
@@ -200,7 +199,6 @@
         }
       }
 
-      // Initialize monthly count
       const storedMonthlyCount = localStorage.getItem(KEYS.monthlyCount);
       const lastResetMonth = localStorage.getItem(KEYS.lastResetMonth);
       if (lastResetMonth !== month) {
@@ -215,7 +213,6 @@
         }
       }
 
-      // Load and validate cached rates
       const savedRates = localStorage.getItem(KEYS.allRates);
       if (savedRates) {
         try {
@@ -229,12 +226,12 @@
             }
           });
         } catch (e) {
+          console.error('Error parsing cached rates:', e.message);
           allRates = {};
           localStorage.removeItem(KEYS.allRates);
         }
       }
 
-      // Load theme preference
       const savedTheme = localStorage.getItem(KEYS.theme) || 'light';
       document.documentElement.setAttribute('data-theme', savedTheme);
       updateThemeToggle(savedTheme);
@@ -329,7 +326,12 @@
       }
 
       try {
-        const response = await fetch(API_BASE_URL);
+        const response = await fetch(API_BASE_URL, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data.error || `HTTP error ${response.status}`);
@@ -365,6 +367,7 @@
         populateCurrencies();
         startCountdown();
       } catch (error) {
+        console.error('Fetch rates error:', error.message);
         showError('Failed to fetch exchange rates: ' + error.message);
         displayNoRates();
       } finally {
@@ -549,6 +552,7 @@
             fetchRates();
           }
         } catch (e) {
+          console.error('Error initializing cached rates:', e.message);
           fetchRates();
         }
       } else {
