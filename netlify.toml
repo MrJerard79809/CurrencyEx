@@ -1,4 +1,6 @@
 [build]
-  command = "npm run build" # Adjust if you have a build step
-  publish = "." # Adjust to your public directory
-  functions = "netlify/functions"
+  publish = "."
+  command = "npm run build"  # Or your build command, if different
+
+[functions]
+  directory = "netlify/functions"
