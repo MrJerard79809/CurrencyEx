@@ -374,23 +374,23 @@
         <h2 id="converterTitle">💱 Currency Converter</h2>
         <div class="converter-row">
           <div class="amount-input">
-            <input type="number" id="amount" placeholder="Enter amount" value="1" min="0" step="any" />
+            <input type="number" id="amount" placeholder="Enter amount" value="1" min="0" step="any" aria-label="Amount to convert" />
           </div>
 
           <div class="search-wrap">
-            <input type="text" id="fromCurrencySearch" class="search-input" placeholder="Search currency..." />
-            <select id="fromCurrency" class="currency-select"></select>
+            <input type="text" id="fromCurrencySearch" class="search-input" placeholder="Search currency..." aria-label="Search source currency" />
+            <select id="fromCurrency" class="currency-select" aria-label="Source currency"></select>
           </div>
 
-          <button id="swapBtn" class="swap-button">↔️</button>
+          <button id="swapBtn" class="swap-button" aria-label="Swap currencies">↔️</button>
 
           <div class="search-wrap">
-            <input type="text" id="toCurrencySearch" class="search-input" placeholder="Search currency..." />
-            <select id="toCurrency" class="currency-select"></select>
+            <input type="text" id="toCurrencySearch" class="search-input" placeholder="Search currency..." aria-label="Search target currency" />
+            <select id="toCurrency" class="currency-select" aria-label="Target currency"></select>
           </div>
         </div>
 
-        <div class="result" id="convertResult">= 1.00 USD</div>
+        <div class="result" id="convertResult" aria-live="polite">= 1.00 USD</div>
       </div>
     </section>
 
@@ -403,9 +403,9 @@
       <p id="footerDataInfo">Data updated every 29 minutes • Secure API Proxy</p>
     </footer>
 
-    <div id="errorToast" class="toast error">Error</div>
+    <div id="errorToast" class="toast error" role="alert" aria-live="assertive">Error</div>
   </div>
 
-  <script src="script.js"></script>
+<script src="script.js"></script>
 </body>
 </html>
