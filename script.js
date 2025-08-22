@@ -1,3 +1,4 @@
+// script.js
 
 const UPDATE_INTERVAL_MS = 29 * 60 * 1000;
 const API_BASE_URL = '/.netlify/functions/exchange-rate';
@@ -20,6 +21,8 @@ let dailyCount = 0;
 let monthlyCount = 0;
 let allRates = {};
 let countdownInterval = null;
+
+// Currency names sourced from your code, kept for consistency
 const CURRENCY_NAMES = {
   AED: 'United Arab Emirates Dirham',
   AFN: 'Afghan Afghani',
@@ -480,11 +483,19 @@ function convertCurrency() {
 }
 
 function swapCurrencies() {
-  const { fromCurrency, toCurrency } = DOMElements;
-  const temp = fromCurrency.value;
-  fromCurrency.value = toCurrency.value;
-  toCurrency.value = temp;
-  convertCurrency();
+  const { fromCurrency, toCurrency, fromCurrencySearch, toCurrencySearch } = DOMElements;
+  const fromValue = fromCurrency.value;
+  const toValue = toCurrency.value;
+  const fromSearchValue = fromCurrencySearch.value;
+  const toSearchValue = toCurrencySearch.value;
+
+  fromCurrency.value = toValue;
+  toCurrency.value = fromValue;
+
+  fromCurrencySearch.value = toSearchValue;
+  toCurrencySearch.value = fromSearchValue;
+
+  populateCurrencies(toValue, fromValue);
 }
 
 function toggleTheme() {
@@ -522,10 +533,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   initApp();
   setupEventListeners();
-  
+
   const savedRates = localStorage.getItem(KEYS.allRates);
   const nextUpdate = parseInt(localStorage.getItem(KEYS.nextUpdate)) || 0;
-  
+
   if (savedRates && Object.keys(allRates).length > 0) {
     displayAllRates();
     populateCurrencies();
