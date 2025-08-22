@@ -3,6 +3,8 @@ const API_BASE_URL = '/.netlify/functions/exchange-rate';
 const DAILY_LIMIT = 50;
 const MONTHLY_LIMIT = 1500;
 const DEBOUNCE_MS = 300;
+const MAX_RETRIES = 2;
+const BASE_RETRY_DELAY_MS = 1000;
 
 const KEYS = {
   dailyCount: 'forex_daily_count',
@@ -21,6 +23,7 @@ let monthlyCount = 0;
 let allRates = {};
 let countdownInterval = null;
 let debounceTimeout = null;
+let isSwapping = false;
 
 const CURRENCY_NAMES = {
   AED: 'United Arab Emirates Dirham',
@@ -196,6 +199,8 @@ const DOMElements = {
   themeToggle: document.getElementById('themeToggle'),
   year: document.getElementById('year'),
   errorToast: document.getElementById('errorToast'),
+  errorToastMessage: document.getElementById('errorToastMessage'),
+  dismissToast: document.getElementById('dismissToast'),
 };
 
 const Utils = {
@@ -210,15 +215,17 @@ const Utils = {
     });
   },
   showError: (message) => {
-    if (DOMElements.errorToast) {
-      DOMElements.errorToast.textContent = message;
+    if (DOMElements.errorToast && DOMElements.errorToastMessage) {
+      DOMElements.errorToastMessage.textContent = message;
       DOMElements.errorToast.className = 'toast error show';
       DOMElements.errorToast.setAttribute('aria-live', 'assertive');
-      setTimeout(() => {
-        DOMElements.errorToast.classList.remove('show');
-      }, 4000);
     } else {
-      console.warn('Error toast element not found:', message);
+      console.warn('Error toast elements not found:', message);
+    }
+  },
+  hideError: () => {
+    if (DOMElements.errorToast) {
+      DOMElements.errorToast.classList.remove('show');
     }
   },
   saveToLocalStorage: (key, value) => {
@@ -280,7 +287,8 @@ function initApp() {
     }
   }
 
-  const savedTheme = Utils.getFromLocalStorage(KEYS.theme) || 'light';
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const savedTheme = Utils.getFromLocalStorage(KEYS.theme) || (prefersDark ? 'dark' : 'light');
   document.documentElement.setAttribute('data-theme', savedTheme);
   updateThemeToggle(savedTheme);
 }
@@ -347,6 +355,8 @@ function populateCurrencies(selectedValueFrom, selectedValueTo) {
   const codes = ['USD', ...Object.keys(allRates).filter((code) => code !== 'USD').sort()];
 
   function fillSelect(select, selectedValue) {
+    const currentValue = select.value;
+    if (currentValue === selectedValue && select.options.length > 0) return;
     select.innerHTML = '';
     const fragment = document.createDocumentFragment();
     codes.forEach((code) => {
@@ -388,19 +398,19 @@ function populateCurrencies(selectedValueFrom, selectedValueTo) {
     fromCurrencySearch.addEventListener('input', () => {
       clearTimeout(debounceTimeout);
       debounceTimeout = setTimeout(() => filterCurrencies(fromCurrencySearch, fromCurrency), DEBOUNCE_MS);
-    });
+    }, { once: true });
   }
   if (toCurrencySearch) {
     toCurrencySearch.addEventListener('input', () => {
       clearTimeout(debounceTimeout);
       debounceTimeout = setTimeout(() => filterCurrencies(toCurrencySearch, toCurrency), DEBOUNCE_MS);
-    });
+    }, { once: true });
   }
 }
 
-async function fetchRates(retryCount = 0, maxRetries = 2) {
+async function fetchRates(retryCount = 0) {
   if (dailyCount >= DAILY_LIMIT || monthlyCount >= MONTHLY_LIMIT) {
-    Utils.showError(`API call limit reached. Daily: ${DAILY_LIMIT}, Monthly: ${MONTHLY_LIMIT}`);
+    Utils.showError(`Rate limit reached. Daily: ${DAILY_LIMIT}, Monthly: ${MONTHLY_LIMIT}. Try again later.`);
     displayNoRates();
     return;
   }
@@ -446,12 +456,16 @@ async function fetchRates(retryCount = 0, maxRetries = 2) {
     startCountdown();
   } catch (error) {
     console.error('Fetch rates error:', error.message);
-    if (retryCount < maxRetries && error.name !== 'TimeoutError') {
-      console.log(`Retrying fetchRates (${retryCount + 1}/${maxRetries})...`);
-      setTimeout(() => fetchRates(retryCount + 1, maxRetries), 1000 * (retryCount + 1));
+    if (retryCount < MAX_RETRIES && error.name !== 'TimeoutError' && error.message !== 'Rate limit exceeded') {
+      const delay = BASE_RETRY_DELAY_MS * Math.pow(2, retryCount);
+      console.log(`Retrying fetchRates (${retryCount + 1}/${MAX_RETRIES}) after ${delay}ms...`);
+      setTimeout(() => fetchRates(retryCount + 1), delay);
       return;
     }
-    Utils.showError('Failed to fetch exchange rates: ' + error.message);
+    const errorMessage = error.message.includes('429') 
+      ? 'Rate limit exceeded. Please try again later.'
+      : `Failed to fetch exchange rates: ${error.message}`;
+    Utils.showError(errorMessage);
     displayNoRates();
   } finally {
     if (DOMElements.loadingText) {
@@ -491,9 +505,9 @@ function convertCurrency() {
   const { amount, fromCurrency, toCurrency, convertResult } = DOMElements;
   if (!amount || !fromCurrency || !toCurrency || !convertResult) return;
 
-  const valAmount = parseFloat(amount.value.replace(/[^0-9.]/g, '')) || 1;
-  if (!Number.isFinite(valAmount) || valAmount < 0) {
-    convertResult.textContent = 'Enter a valid amount';
+  const valAmount = parseFloat(amount.value) || 0;
+  if (!Number.isFinite(valAmount) || valAmount <= 0) {
+    convertResult.textContent = 'Enter a positive amount';
     convertResult.setAttribute('aria-invalid', 'true');
     return;
   }
@@ -522,8 +536,16 @@ function convertCurrency() {
 }
 
 function swapCurrencies() {
+  if (isSwapping) return;
+  isSwapping = true;
+  if (DOMElements.swapBtn) DOMElements.swapBtn.disabled = true;
+
   const { fromCurrency, toCurrency, fromCurrencySearch, toCurrencySearch } = DOMElements;
-  if (!fromCurrency || !toCurrency) return;
+  if (!fromCurrency || !toCurrency) {
+    isSwapping = false;
+    if (DOMElements.swapBtn) DOMElements.swapBtn.disabled = false;
+    return;
+  }
 
   const fromValue = fromCurrency.value;
   const toValue = toCurrency.value;
@@ -532,11 +554,12 @@ function swapCurrencies() {
 
   fromCurrency.value = toValue;
   toCurrency.value = fromValue;
-
   if (fromCurrencySearch) fromCurrencySearch.value = toSearchValue;
   if (toCurrencySearch) toCurrencySearch.value = fromSearchValue;
 
-  populateCurrencies(toValue, fromValue);
+  convertCurrency();
+  isSwapping = false;
+  if (DOMElements.swapBtn) DOMElements.swapBtn.disabled = false;
 }
 
 function toggleTheme() {
@@ -548,7 +571,7 @@ function toggleTheme() {
 }
 
 function setupEventListeners() {
-  const { amount, fromCurrency, toCurrency, swapBtn, themeToggle } = DOMElements;
+  const { amount, fromCurrency, toCurrency, swapBtn, themeToggle, dismissToast } = DOMElements;
 
   if (amount) {
     amount.addEventListener('input', () => {
@@ -560,6 +583,7 @@ function setupEventListeners() {
   if (toCurrency) toCurrency.addEventListener('change', convertCurrency);
   if (swapBtn) swapBtn.addEventListener('click', swapCurrencies);
   if (themeToggle) themeToggle.addEventListener('click', toggleTheme);
+  if (dismissToast) dismissToast.addEventListener('click', Utils.hideError);
 
   window.addEventListener('beforeunload', () => {
     if (countdownInterval) clearInterval(countdownInterval);

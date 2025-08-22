@@ -2,10 +2,18 @@
 <html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="description" content="Live foreign exchange rates and currency converter. Updated every 29 minutes." />
+  <meta name="keywords" content="currency converter, forex, exchange rates, live rates" />
+  <meta name="author" content="ForexTrack Pro" />
+  <meta property="og:title" content="ForexTrack Pro | Live Currency Converter & Rates" />
+  <meta property="og:description" content="Real-time currency exchange rates and converter. Updated every 29 minutes." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://your-domain.com" />
+  <meta property="og:image" content="/images/favicon.png" />
   <title>ForexTrack Pro | Live Currency Converter & Rates</title>
-  <meta name="description" content="Live foreign exchange rates and converter. Updated every 29 minutes." />
-  <link rel="icon" type="image/png" sizes="32x32" href="./images/26a7e44e-95c7-4bf6-9a9f-5d511317fb86.jpg">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon.png" />
   <style>
     :root {
       --bg-primary: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
@@ -20,6 +28,7 @@
       --shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
       --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.08);
       --shadow-input: 0 2px 8px rgba(0,0,0,0.1);
+      --transition: all 0.3s ease;
     }
 
     [data-theme="dark"] {
@@ -37,6 +46,23 @@
       --shadow-input: 0 2px 8px rgba(0,0,0,0.3);
     }
 
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg-primary: linear-gradient(135deg, #1a1a1a 0%, #2c3e50 100%);
+        --bg-secondary: rgba(0, 0, 0, 0.3);
+        --bg-card: rgba(0, 0, 0, 0.4);
+        --bg-rate-card: #2c2c2c;
+        --text-primary: #e0e0e0;
+        --text-secondary: #d1d5db;
+        --text-accent: #00b4d8;
+        --text-muted: #a0a0a0;
+        --text-header: #e0e0e0;
+        --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+        --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.4);
+        --shadow-input: 0 2px 8px rgba(0,0,0,0.3);
+      }
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -49,6 +75,7 @@
       color: var(--text-primary);
       min-height: 100vh;
       line-height: 1.6;
+      transition: var(--transition);
     }
 
     .app-container {
@@ -71,10 +98,11 @@
       padding: 20px;
       color: var(--text-header);
       box-shadow: var(--shadow);
+      transition: var(--transition);
     }
 
     .logo h1 {
-      font-size: 28px;
+      font-size: clamp(24px, 5vw, 28px);
       font-weight: 700;
     }
 
@@ -83,7 +111,7 @@
     }
 
     .logo p {
-      font-size: 14px;
+      font-size: clamp(12px, 3vw, 14px);
       opacity: 0.9;
       margin-top: 4px;
     }
@@ -104,7 +132,7 @@
     }
 
     #statusText {
-      font-size: 14px;
+      font-size: clamp(12px, 3vw, 14px);
     }
 
     .theme-toggle {
@@ -114,10 +142,12 @@
       font-size: 20px;
       cursor: pointer;
       padding: 8px;
+      transition: var(--transition);
     }
 
     .theme-toggle:hover {
       color: var(--text-accent);
+      transform: scale(1.1);
     }
 
     .stats-panel {
@@ -132,6 +162,7 @@
       box-shadow: var(--shadow);
       flex-wrap: wrap;
       gap: 20px;
+      transition: var(--transition);
     }
 
     .stat {
@@ -140,14 +171,14 @@
     }
 
     .stat label {
-      font-size: 12px;
+      font-size: clamp(10px, 2.5vw, 12px);
       opacity: 0.9;
       display: block;
       margin-bottom: 4px;
     }
 
     .stat span {
-      font-size: 16px;
+      font-size: clamp(14px, 3.5vw, 16px);
       font-weight: 600;
     }
 
@@ -162,10 +193,11 @@
       padding: 24px;
       color: var(--text-secondary);
       box-shadow: var(--shadow);
+      transition: var(--transition);
     }
 
     .converter-card h2 {
-      font-size: 20px;
+      font-size: clamp(18px, 4vw, 20px);
       margin-bottom: 16px;
       text-align: center;
     }
@@ -182,13 +214,18 @@
     .amount-input input {
       width: 100%;
       padding: 16px;
-      font-size: 18px;
+      font-size: clamp(16px, 4vw, 18px);
       border: none;
       border-radius: 8px;
       text-align: center;
       box-shadow: var(--shadow-input);
       background: var(--bg-rate-card);
       color: var(--text-primary);
+      transition: var(--transition);
+    }
+
+    .amount-input input:focus {
+      outline: 2px solid var(--text-accent);
     }
 
     .search-wrap {
@@ -202,10 +239,15 @@
       padding: 12px;
       border: none;
       border-radius: 8px;
-      font-size: 16px;
+      font-size: clamp(14px, 3.5vw, 16px);
       box-shadow: var(--shadow-input);
       background: var(--bg-rate-card);
       color: var(--text-primary);
+      transition: var(--transition);
+    }
+
+    .search-input:focus {
+      outline: 2px solid var(--text-accent);
     }
 
     .currency-select {
@@ -213,13 +255,18 @@
       padding: 12px;
       border: none;
       border-radius: 8px;
-      font-size: 16px;
+      font-size: clamp(14px, 3.5vw, 16px);
       background: var(--bg-rate-card);
       color: var(--text-primary);
       margin-top: 6px;
       max-height: 200px;
       overflow-y: auto;
       font-family: inherit;
+      transition: var(--transition);
+    }
+
+    .currency-select:focus {
+      outline: 2px solid var(--text-accent);
     }
 
     .swap-button {
@@ -231,14 +278,21 @@
       border: none;
       border-radius: 8px;
       font-size: 20px;
+      transition: var(--transition);
     }
 
-    .swap-button:hover {
+    .swap-button:hover:not(:disabled) {
       background: #00c0e0;
+      transform: scale(1.05);
+    }
+
+    .swap-button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .result {
-      font-size: 26px;
+      font-size: clamp(22px, 5vw, 26px);
       font-weight: 600;
       text-align: center;
       color: var(--text-accent);
@@ -246,6 +300,11 @@
       background: var(--bg-secondary);
       border-radius: 10px;
       margin-top: 10px;
+      transition: var(--transition);
+    }
+
+    .result[aria-invalid="true"] {
+      color: #e74c3c;
     }
 
     .rates-container {
@@ -263,22 +322,27 @@
       text-align: center;
       box-shadow: var(--shadow-card);
       position: relative;
+      transition: var(--transition);
+    }
+
+    .rate-card:hover {
+      transform: translateY(-4px);
     }
 
     .rate-card h3 {
-      font-size: 18px;
+      font-size: clamp(16px, 4vw, 18px);
       color: var(--text-primary);
       margin-bottom: 8px;
     }
 
     .rate-value {
-      font-size: 22px;
+      font-size: clamp(18px, 4.5vw, 22px);
       font-weight: 600;
       color: #2575fc;
     }
 
     .rate-updated {
-      font-size: 12px;
+      font-size: clamp(10px, 2.5vw, 12px);
       color: var(--text-muted);
       margin-top: 8px;
     }
@@ -287,15 +351,19 @@
       grid-column: 1 / -1;
       text-align: center;
       padding: 40px;
-      font-size: 18px;
+      font-size: clamp(16px, 4vw, 18px);
       color: var(--text-secondary);
       font-weight: 500;
+    }
+
+    .loading {
+      display: none;
     }
 
     .footer {
       text-align: center;
       color: var(--text-secondary);
-      font-size: 14px;
+      font-size: clamp(12px, 3vw, 14px);
       margin-top: auto;
       opacity: 0.8;
     }
@@ -315,8 +383,10 @@
       font-weight: 500;
       box-shadow: var(--shadow);
       opacity: 0;
-      transition: opacity 0.3s;
+      transition: opacity 0.3s ease;
       z-index: 1000;
+      max-width: 90%;
+      text-align: center;
     }
 
     .toast.error {
@@ -327,7 +397,19 @@
       opacity: 1;
     }
 
+    .toast button {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 16px;
+      margin-left: 12px;
+      cursor: pointer;
+    }
+
     @media (max-width: 768px) {
+      .app-container {
+        padding: 10px;
+      }
       .converter-row {
         flex-direction: column;
         align-items: stretch;
@@ -341,24 +423,52 @@
       .stats-panel {
         justify-content: center;
       }
+      .header, .converter-card, .stats-panel {
+        padding: 12px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .logo h1 {
+        font-size: 20px;
+      }
+      .converter-card h2 {
+        font-size: 16px;
+      }
+      .result {
+        font-size: 20px;
+      }
+    }
+
+    noscript {
+      display: block;
+      text-align: center;
+      color: var(--text-secondary);
+      padding: 20px;
+      background: var(--bg-card);
+      border-radius: 8px;
+      margin: 20px;
     }
   </style>
 </head>
 <body>
+  <noscript>
+    <p>JavaScript is required to use the currency converter and view live exchange rates. Please enable JavaScript in your browser settings.</p>
+  </noscript>
   <div class="app-container">
-    <header class="header">
+    <header class="header" role="banner">
       <div class="logo">
         <h1 id="logoTitle">ForexTrack<span class="logo-accent">Pro</span></h1>
         <p id="logoSubtitle">Real-Time Currency Exchange Monitoring</p>
       </div>
       <div class="status-bar">
-        <span class="status-dot" id="statusDot"></span>
+        <span class="status-dot" id="statusDot" aria-hidden="true"></span>
         <span id="statusText">Monitoring</span>
-        <button class="theme-toggle" id="themeToggle">☀️</button>
+        <button class="theme-toggle" id="themeToggle" aria-label="Switch to dark theme">☀️</button>
       </div>
     </header>
 
-    <section class="stats-panel">
+    <section class="stats-panel" aria-label="Exchange rate statistics">
       <div class="stat">
         <label id="lastUpdateLabel">Last Update</label>
         <span id="lastUpdate">Never</span>
@@ -369,7 +479,7 @@
       </div>
     </section>
 
-    <section class="converter-section">
+    <section class="converter-section" aria-label="Currency converter">
       <div class="converter-card">
         <h2 id="converterTitle">💱 Currency Converter</h2>
         <div class="converter-row">
@@ -378,15 +488,15 @@
           </div>
 
           <div class="search-wrap">
-            <input type="text" id="fromCurrencySearch" class="search-input" placeholder="Search currency..." aria-label="Search source currency" />
-            <select id="fromCurrency" class="currency-select" aria-label="Source currency"></select>
+            <input type="text" id="fromCurrencySearch" class="search-input" placeholder="Search source currency..." aria-label="Search source currency" />
+            <select id="fromCurrency" class="currency-select" aria-label="Select source currency"></select>
           </div>
 
           <button id="swapBtn" class="swap-button" aria-label="Swap currencies">↔️</button>
 
           <div class="search-wrap">
-            <input type="text" id="toCurrencySearch" class="search-input" placeholder="Search currency..." aria-label="Search target currency" />
-            <select id="toCurrency" class="currency-select" aria-label="Target currency"></select>
+            <input type="text" id="toCurrencySearch" class="search-input" placeholder="Search target currency..." aria-label="Search target currency" />
+            <select id="toCurrency" class="currency-select" aria-label="Select target currency"></select>
           </div>
         </div>
 
@@ -394,18 +504,21 @@
       </div>
     </section>
 
-    <main class="rates-container" id="ratesContainer">
+    <main class="rates-container" id="ratesContainer" aria-label="Exchange rates">
       <div class="loading" id="loadingText">🔄 Loading all currency rates...</div>
     </main>
 
-    <footer class="footer">
+    <footer class="footer" role="contentinfo">
       <p id="footerCopyright">© <span id="year">2025</span> ForexTrack Pro. All rights reserved.</p>
       <p id="footerDataInfo">Data updated every 29 minutes • Secure API Proxy</p>
     </footer>
 
-    <div id="errorToast" class="toast error" role="alert" aria-live="assertive">Error</div>
+    <div id="errorToast" class="toast error" role="alert" aria-live="assertive">
+      <span id="errorToastMessage">Error</span>
+      <button id="dismissToast" aria-label="Dismiss error message">✕</button>
+    </div>
   </div>
 
-<script src="script.js"></script>
+  <script src="/script.js"></script>
 </body>
 </html>
