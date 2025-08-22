@@ -421,10 +421,26 @@ async function fetchRates(retryCount = 0) {
 
   try {
     const response = await fetch(API_BASE_URL, { signal: AbortSignal.timeout(5000) });
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || `HTTP error ${response.status}`);
+    
+    // Check for non-JSON response (e.g., HTML error page)
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      throw new Error(`Unexpected response format: ${text.slice(0, 50)}...`);
     }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      let errorMessage = data.error || `HTTP error ${response.status}`;
+      if (response.status === 404) {
+        errorMessage = 'Exchange rate service unavailable. Please try again later.';
+      } else if (response.status === 429) {
+        errorMessage = 'Rate limit exceeded. Please try again later.';
+      }
+      throw new Error(errorMessage);
+    }
+
     if (!data.rates || typeof data.rates !== 'object') {
       throw new Error('Invalid rates data received');
     }
@@ -455,14 +471,24 @@ async function fetchRates(retryCount = 0) {
     populateCurrencies(DOMElements.fromCurrency?.value, DOMElements.toCurrency?.value);
     startCountdown();
   } catch (error) {
-    console.error('Fetch rates error:', error.message);
-    if (retryCount < MAX_RETRIES && error.name !== 'TimeoutError' && error.message !== 'Rate limit exceeded') {
+    console.error('Fetch rates error:', {
+      message: error.message,
+      retryCount,
+      url: API_BASE_URL,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Skip retries for non-recoverable errors
+    if (retryCount < MAX_RETRIES && error.name !== 'TimeoutError' && !error.message.includes('404') && !error.message.includes('429')) {
       const delay = BASE_RETRY_DELAY_MS * Math.pow(2, retryCount);
       console.log(`Retrying fetchRates (${retryCount + 1}/${MAX_RETRIES}) after ${delay}ms...`);
       setTimeout(() => fetchRates(retryCount + 1), delay);
       return;
     }
-    const errorMessage = error.message.includes('429') 
+
+    const errorMessage = error.message.includes('404')
+      ? 'Exchange rate service is currently unavailable. Please try again later.'
+      : error.message.includes('429')
       ? 'Rate limit exceeded. Please try again later.'
       : `Failed to fetch exchange rates: ${error.message}`;
     Utils.showError(errorMessage);
