@@ -4,14 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="description" content="Live foreign exchange rates and currency converter. Updated every 29 minutes." />
-  <meta name="keywords" content="currency converter, forex, exchange rates, live rates" />
+  <meta name="description" content="Live foreign exchange rates and currency converter using Freecurrencyapi.com. Updated every 10 minutes." />
+  <meta name="keywords" content="currency converter, forex, exchange rates, live rates, freecurrencyapi" />
   <meta name="author" content="ForexTrack Pro" />
   <meta property="og:title" content="ForexTrack Pro | Live Currency Converter & Rates" />
-  <meta property="og:description" content="Real-time currency exchange rates and converter. Updated every 29 minutes." />
+  <meta property="og:description" content="Real-time currency exchange rates and converter using Freecurrencyapi.com. Updated every 10 minutes." />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://your-domain.com" />
-  <meta property="og:image" content="/images/favicon.png" />
   <title>ForexTrack Pro | Live Currency Converter & Rates</title>
   <link rel="icon" type="image/png" sizes="32x32" href="./images/26a7e44e-95c7-4bf6-9a9f-5d511317fb86.jpg" />
   <style>
@@ -501,8 +499,14 @@
         </div>
 
         <div class="result" id="convertResult" aria-live="polite">= 1.00 USD</div>
+
+            <div class="search-wrap">
+      <input type="text" id="searchInput" class="search-input" placeholder="Search currencies (code or name)..." aria-label="Search currencies" />
+    </div>
       </div>
     </section>
+
+
 
     <main class="rates-container" id="ratesContainer" aria-label="Exchange rates">
       <div class="loading" id="loadingText">🔄 Loading all currency rates...</div>
@@ -510,7 +514,7 @@
 
     <footer class="footer" role="contentinfo">
       <p id="footerCopyright">© <span id="year">2025</span> ForexTrack Pro. All rights reserved.</p>
-      <p id="footerDataInfo">Data updated every 29 minutes • Secure API Proxy</p>
+      <p id="footerDataInfo">Data updated every 10 minutes via Freecurrencyapi.com • Secure API Proxy</p>
     </footer>
 
     <div id="errorToast" class="toast error" role="alert" aria-live="assertive">
