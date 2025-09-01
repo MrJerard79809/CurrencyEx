@@ -1,9 +1,17 @@
+/**
+ * Forex Rate Dashboard - Fully Synchronized Client
+ * Works with empty DB, self-initializing
+ */
+
+// ✅ API Base URL (Netlify function)
 const API_BASE_URL = '/.netlify/functions/exchange-rate';
 
+// Configuration
 const DEBOUNCE_MS = 300;
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 1000;
 
+// LocalStorage Keys
 const KEYS = {
   allRates: 'forex_cached_rates',
   currencies: 'forex_cached_currencies',
@@ -13,6 +21,7 @@ const KEYS = {
   theme: 'forex_theme',
 };
 
+// DOM References
 const DOMElements = {
   amount: document.getElementById('amount'),
   fromCurrency: document.getElementById('fromCurrency'),
@@ -33,6 +42,7 @@ const DOMElements = {
   toCurrencySearch: document.getElementById('toCurrencySearch'),
 };
 
+// Safe localStorage wrapper
 const SafeStorage = {
   _isAvailable: null,
   _memoryStore: new Map(),
@@ -70,6 +80,7 @@ const SafeStorage = {
   },
 };
 
+// Server Time Sync (corrects client clock drift)
 const ServerTime = {
   _serverOffset: 0,
 
@@ -123,6 +134,7 @@ const ServerTime = {
   }
 };
 
+// Utility Functions
 const Utils = {
   formatTime: ServerTime.formatTime.bind(ServerTime),
   getServerTime: ServerTime.now.bind(ServerTime),
@@ -171,6 +183,7 @@ const Utils = {
   }
 };
 
+// Countdown Timer
 const HybridCountdown = {
   rafId: null,
   intervalId: null,
@@ -217,12 +230,14 @@ const HybridCountdown = {
   }
 };
 
+// App State
 let allRates = {};
 let allCurrencies = [];
 let currentSearchTerm = '';
 let isFetching = false;
 let fetchAbortController = null;
 
+// Full list of currency names
 const CURRENCY_NAMES = {
   USD: 'United States Dollar', EUR: 'Euro', GBP: 'British Pound Sterling', JPY: 'Japanese Yen',
   CAD: 'Canadian Dollar', AUD: 'Australian Dollar', CHF: 'Swiss Franc', CNY: 'Chinese Yuan',
@@ -254,12 +269,14 @@ const CURRENCY_NAMES = {
   MUR: 'Mauritian Rupee', MGA: 'Malagasy Ariary'
 };
 
+// Update "Last Updated" display
 function updateLastUpdated(timestamp) {
   const formatted = Utils.formatTime(timestamp);
   Utils.saveToLocalStorage(KEYS.lastUpdate, timestamp.toString());
   if (DOMElements.lastUpdate) DOMElements.lastUpdate.textContent = formatted;
 }
 
+// Display all rates
 function displayAllRates(searchTerm = '') {
   if (!DOMElements.ratesContainer) return;
   currentSearchTerm = searchTerm;
@@ -297,6 +314,7 @@ function displayAllRates(searchTerm = '') {
   DOMElements.ratesContainer.appendChild(fragment);
 }
 
+// Populate dropdown
 function populateSelect(select, currencies, value) {
   select.innerHTML = '';
   currencies.forEach(c => {
@@ -320,6 +338,7 @@ function populateToSelect(term = '') {
   convertCurrency();
 }
 
+// Convert currency
 function convertCurrency() {
   const amt = parseFloat(DOMElements.amount?.value) || 0;
   const from = DOMElements.fromCurrency?.value;
@@ -343,6 +362,7 @@ function convertCurrency() {
   })} ${to}`;
 }
 
+// Helper functions
 function swapCurrencies() {
   [DOMElements.fromCurrency.value, DOMElements.toCurrency.value] = [DOMElements.toCurrency.value, DOMElements.fromCurrency.value];
   convertCurrency();
@@ -361,6 +381,7 @@ function toggleTheme() {
   if (DOMElements.themeToggle) DOMElements.themeToggle.textContent = next === 'dark' ? '☀️' : '🌙';
 }
 
+// Fetch rates
 let lastFetchTimestamp = null;
 async function fetchRates(retry = 0, isManualRefresh = false) {
   if (isFetching) return;
@@ -398,8 +419,10 @@ async function fetchRates(retry = 0, isManualRefresh = false) {
     const data = await res.json();
     if (!data.rates || !data.meta) throw new Error('Invalid response structure');
 
+    // Sync time
     ServerTime.synchronize(data.meta.server_timestamp);
 
+    // Update state
     allRates = { USD: 1, ...data.rates };
     allCurrencies = Object.keys(allRates).map(code => ({
       code,
@@ -407,11 +430,13 @@ async function fetchRates(retry = 0, isManualRefresh = false) {
       rate: allRates[code]
     })).sort((a, b) => a.code.localeCompare(b.code));
 
+    // Save to localStorage
     Utils.saveToLocalStorage(KEYS.allRates, JSON.stringify(allRates));
     Utils.saveToLocalStorage(KEYS.currencies, JSON.stringify(allCurrencies));
     Utils.saveToLocalStorage(KEYS.lastUpdate, data.meta.last_updated);
     Utils.saveToLocalStorage(KEYS.nextRefresh, data.meta.next_refresh);
 
+    // Update UI
     updateLastUpdated(data.meta.last_updated);
     HybridCountdown.stop();
     HybridCountdown.start(data.meta.next_refresh);
@@ -447,6 +472,7 @@ async function fetchRates(retry = 0, isManualRefresh = false) {
   }
 }
 
+// Load stale cache
 function loadStaleFromCache() {
   try {
     const ratesStr = Utils.getFromLocalStorage(KEYS.allRates);
@@ -475,6 +501,7 @@ function loadStaleFromCache() {
   }
 }
 
+// Initialize
 document.addEventListener('DOMContentLoaded', () => {
   if (DOMElements.year) DOMElements.year.textContent = new Date().getFullYear();
 
@@ -483,6 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.documentElement.setAttribute('data-theme', savedTheme);
   if (DOMElements.themeToggle) DOMElements.themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
 
+  // Events
   DOMElements.amount?.addEventListener('input', Utils.debounce(convertCurrency, DEBOUNCE_MS));
   DOMElements.fromCurrency?.addEventListener('change', convertCurrency);
   DOMElements.toCurrency?.addEventListener('change', convertCurrency);
@@ -509,11 +537,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.ctrlKey && e.key === '/') { e.preventDefault(); DOMElements.searchInput?.focus(); }
   });
 
+  // Init
   ServerTime.loadFromStorage();
   loadStaleFromCache();
   fetchRates();
 });
 
+// Cleanup
 window.addEventListener('beforeunload', () => {
   HybridCountdown.stop();
   if (fetchAbortController) fetchAbortController.abort();
