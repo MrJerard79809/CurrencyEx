@@ -1,17 +1,9 @@
-/**
- * Forex Rate Dashboard - Fully Synchronized Client
- * Works with empty DB, self-initializing
- */
-
-// API Base URL (Netlify function)
 const API_BASE_URL = '/.netlify/functions/exchange-rate';
 
-// Configuration
 const DEBOUNCE_MS = 300;
 const MAX_RETRIES = 3;
 const BASE_RETRY_DELAY_MS = 1000;
 
-// LocalStorage Keys
 const KEYS = {
   allRates: 'forex_cached_rates',
   currencies: 'forex_cached_currencies',
@@ -21,7 +13,6 @@ const KEYS = {
   theme: 'forex_theme',
 };
 
-// DOM References (assumes your HTML has these IDs)
 const DOMElements = {
   amount: document.getElementById('amount'),
   fromCurrency: document.getElementById('fromCurrency'),
@@ -42,7 +33,6 @@ const DOMElements = {
   toCurrencySearch: document.getElementById('toCurrencySearch'),
 };
 
-// Safe localStorage wrapper (handles quota errors, private mode)
 const SafeStorage = {
   _isAvailable: null,
   _memoryStore: new Map(),
@@ -65,7 +55,6 @@ const SafeStorage = {
       try {
         localStorage.setItem(key, String(value));
       } catch (e) {
-        // Quota exceeded, fallback to memory
         this._memoryStore.set(key, String(value));
       }
     } else {
@@ -81,19 +70,13 @@ const SafeStorage = {
   },
 };
 
-// Server Time Sync (corrects client clock drift)
 const ServerTime = {
-  _serverOffset: 0, // serverTime = clientTime + offset
+  _serverOffset: 0,
 
-  /**
-   * Sync with server timestamp
-   * @param {number} serverTimestamp - From API response
-   */
   synchronize(serverTimestamp) {
     const clientTime = Date.now();
     this._serverOffset = serverTimestamp - clientTime;
 
-    // Save sync data for reuse
     Utils.saveToLocalStorage(KEYS.serverTimestamp, JSON.stringify({
       serverTimestamp,
       clientTime,
@@ -101,16 +84,12 @@ const ServerTime = {
     }));
   },
 
-  /**
-   * Load last sync from localStorage
-   */
   loadFromStorage() {
     try {
       const stored = Utils.getFromLocalStorage(KEYS.serverTimestamp);
       if (stored) {
         const data = JSON.parse(stored);
         const age = Date.now() - data.clientTime;
-        // Only use if less than 10 minutes old
         if (age < 10 * 60 * 1000) {
           this._serverOffset = data.offset;
         }
@@ -120,19 +99,10 @@ const ServerTime = {
     }
   },
 
-  /**
-   * Get current time using server sync
-   * @returns {number} - Synchronized timestamp
-   */
   now() {
     return Date.now() + this._serverOffset;
   },
 
-  /**
-   * Format timestamp to readable string
-   * @param {number} timestamp
-   * @returns {string}
-   */
   formatTime(timestamp) {
     const ts = parseInt(timestamp, 10);
     if (!ts || isNaN(ts)) return 'Never';
@@ -153,14 +123,10 @@ const ServerTime = {
   }
 };
 
-// Utility Functions
 const Utils = {
   formatTime: ServerTime.formatTime.bind(ServerTime),
   getServerTime: ServerTime.now.bind(ServerTime),
 
-  /**
-   * Show error toast
-   */
   showError(msg) {
     if (DOMElements.errorToastMessage) DOMElements.errorToastMessage.textContent = msg;
     if (DOMElements.errorToast) {
@@ -169,30 +135,18 @@ const Utils = {
     }
   },
 
-  /**
-   * Hide error toast
-   */
   hideError() {
     if (DOMElements.errorToast) DOMElements.errorToast.classList.remove('show');
   },
 
-  /**
-   * Save to localStorage (safe)
-   */
   saveToLocalStorage(key, value) {
     SafeStorage.setItem(key, value);
   },
 
-  /**
-   * Get from localStorage (safe)
-   */
   getFromLocalStorage(key) {
     return SafeStorage.getItem(key);
   },
 
-  /**
-   * Filter currencies by code or name
-   */
   filterCurrencies(currencies, term) {
     if (!term || !term.trim()) return currencies;
     const t = term.toLowerCase().trim();
@@ -208,9 +162,6 @@ const Utils = {
     });
   },
 
-  /**
-   * Debounce function
-   */
   debounce(func, wait) {
     let timeout;
     return function (...args) {
@@ -220,15 +171,11 @@ const Utils = {
   }
 };
 
-// Countdown Timer (uses server-synced time)
 const HybridCountdown = {
   rafId: null,
   intervalId: null,
   targetTime: null,
 
-  /**
-   * Start countdown to next refresh
-   */
   start(nextRefreshTime) {
     this.stop();
     const next = parseInt(nextRefreshTime, 10);
@@ -261,9 +208,6 @@ const HybridCountdown = {
     this.rafId = requestAnimationFrame(rafLoop);
   },
 
-  /**
-   * Stop countdown
-   */
   stop() {
     if (this.rafId) cancelAnimationFrame(this.rafId);
     if (this.intervalId) clearInterval(this.intervalId);
@@ -273,14 +217,12 @@ const HybridCountdown = {
   }
 };
 
-// App State
 let allRates = {};
 let allCurrencies = [];
 let currentSearchTerm = '';
 let isFetching = false;
 let fetchAbortController = null;
 
-// Full list of currency names
 const CURRENCY_NAMES = {
   USD: 'United States Dollar', EUR: 'Euro', GBP: 'British Pound Sterling', JPY: 'Japanese Yen',
   CAD: 'Canadian Dollar', AUD: 'Australian Dollar', CHF: 'Swiss Franc', CNY: 'Chinese Yuan',
@@ -312,14 +254,12 @@ const CURRENCY_NAMES = {
   MUR: 'Mauritian Rupee', MGA: 'Malagasy Ariary'
 };
 
-// Update "Last Updated" display
 function updateLastUpdated(timestamp) {
   const formatted = Utils.formatTime(timestamp);
   Utils.saveToLocalStorage(KEYS.lastUpdate, timestamp.toString());
   if (DOMElements.lastUpdate) DOMElements.lastUpdate.textContent = formatted;
 }
 
-// Display all rates
 function displayAllRates(searchTerm = '') {
   if (!DOMElements.ratesContainer) return;
   currentSearchTerm = searchTerm;
@@ -357,7 +297,6 @@ function displayAllRates(searchTerm = '') {
   DOMElements.ratesContainer.appendChild(fragment);
 }
 
-// Populate dropdown
 function populateSelect(select, currencies, value) {
   select.innerHTML = '';
   currencies.forEach(c => {
@@ -381,7 +320,6 @@ function populateToSelect(term = '') {
   convertCurrency();
 }
 
-// Convert currency
 function convertCurrency() {
   const amt = parseFloat(DOMElements.amount?.value) || 0;
   const from = DOMElements.fromCurrency?.value;
@@ -405,7 +343,6 @@ function convertCurrency() {
   })} ${to}`;
 }
 
-// Helper functions
 function swapCurrencies() {
   [DOMElements.fromCurrency.value, DOMElements.toCurrency.value] = [DOMElements.toCurrency.value, DOMElements.fromCurrency.value];
   convertCurrency();
@@ -424,7 +361,6 @@ function toggleTheme() {
   if (DOMElements.themeToggle) DOMElements.themeToggle.textContent = next === 'dark' ? '☀️' : '🌙';
 }
 
-// Fetch rates from API
 let lastFetchTimestamp = null;
 async function fetchRates(retry = 0, isManualRefresh = false) {
   if (isFetching) return;
@@ -462,10 +398,8 @@ async function fetchRates(retry = 0, isManualRefresh = false) {
     const data = await res.json();
     if (!data.rates || !data.meta) throw new Error('Invalid response structure');
 
-    // ✅ Sync server time
     ServerTime.synchronize(data.meta.server_timestamp);
 
-    // Update app state
     allRates = { USD: 1, ...data.rates };
     allCurrencies = Object.keys(allRates).map(code => ({
       code,
@@ -473,17 +407,14 @@ async function fetchRates(retry = 0, isManualRefresh = false) {
       rate: allRates[code]
     })).sort((a, b) => a.code.localeCompare(b.code));
 
-    // Save to localStorage
     Utils.saveToLocalStorage(KEYS.allRates, JSON.stringify(allRates));
     Utils.saveToLocalStorage(KEYS.currencies, JSON.stringify(allCurrencies));
     Utils.saveToLocalStorage(KEYS.lastUpdate, data.meta.last_updated);
     Utils.saveToLocalStorage(KEYS.nextRefresh, data.meta.next_refresh);
 
-    // Update UI
     updateLastUpdated(data.meta.last_updated);
     HybridCountdown.stop();
     HybridCountdown.start(data.meta.next_refresh);
-
     displayAllRates(currentSearchTerm);
     populateFromSelect('');
     populateToSelect('');
@@ -492,7 +423,6 @@ async function fetchRates(retry = 0, isManualRefresh = false) {
     else Utils.hideError();
 
     if (DOMElements.loadingText) DOMElements.loadingText.style.display = 'none';
-
     lastFetchTimestamp = Date.now();
   } catch (err) {
     if (err.name === 'AbortError') {
@@ -517,7 +447,6 @@ async function fetchRates(retry = 0, isManualRefresh = false) {
   }
 }
 
-// Load from localStorage on startup
 function loadStaleFromCache() {
   try {
     const ratesStr = Utils.getFromLocalStorage(KEYS.allRates);
@@ -527,19 +456,11 @@ function loadStaleFromCache() {
 
     if (!ratesStr || !currenciesStr) return;
 
-    const rates = JSON.parse(ratesStr);
-    const currencies = JSON.parse(currenciesStr);
+    allRates = JSON.parse(ratesStr);
+    allCurrencies = JSON.parse(currenciesStr);
 
-    allRates = { USD: 1, ...rates };
-    allCurrencies = currencies;
-
-    // Ensure USD exists
     if (!allCurrencies.some(c => c.code === 'USD')) {
-      allCurrencies.unshift({
-        code: 'USD',
-        name: 'United States Dollar',
-        rate: 1
-      });
+      allCurrencies.unshift({ code: 'USD', name: 'United States Dollar', rate: 1 });
       allCurrencies.sort((a, b) => a.code.localeCompare(b.code));
     }
 
@@ -550,22 +471,18 @@ function loadStaleFromCache() {
     if (lastUpdateStr) updateLastUpdated(parseInt(lastUpdateStr, 10));
     if (nextRefreshStr) HybridCountdown.start(parseInt(nextRefreshStr, 10));
   } catch (e) {
-    console.error('Failed to load cache:', e);
+    console.error('Cache load failed:', e);
   }
 }
 
-// Initialize on DOM load
 document.addEventListener('DOMContentLoaded', () => {
-  // Set current year
   if (DOMElements.year) DOMElements.year.textContent = new Date().getFullYear();
 
-  // Load theme
   const savedTheme = Utils.getFromLocalStorage(KEYS.theme) ||
     (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   document.documentElement.setAttribute('data-theme', savedTheme);
   if (DOMElements.themeToggle) DOMElements.themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
 
-  // Event Listeners
   DOMElements.amount?.addEventListener('input', Utils.debounce(convertCurrency, DEBOUNCE_MS));
   DOMElements.fromCurrency?.addEventListener('change', convertCurrency);
   DOMElements.toCurrency?.addEventListener('change', convertCurrency);
@@ -577,7 +494,6 @@ document.addEventListener('DOMContentLoaded', () => {
   DOMElements.fromCurrencySearch?.addEventListener('input', Utils.debounce(e => populateFromSelect(e.target.value), DEBOUNCE_MS));
   DOMElements.toCurrencySearch?.addEventListener('input', Utils.debounce(e => populateToSelect(e.target.value), DEBOUNCE_MS));
 
-  // Escape key clears search
   ['searchInput', 'fromCurrencySearch', 'toCurrencySearch'].forEach(id => {
     const el = DOMElements[id];
     el?.addEventListener('keydown', e => {
@@ -588,19 +504,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Keyboard shortcuts
   document.addEventListener('keydown', e => {
     if (e.ctrlKey && e.key === 'r') { e.preventDefault(); if (!isFetching) fetchRates(0, true); }
     if (e.ctrlKey && e.key === '/') { e.preventDefault(); DOMElements.searchInput?.focus(); }
   });
 
-  // Init
   ServerTime.loadFromStorage();
   loadStaleFromCache();
-  fetchRates(); // Start fetching
+  fetchRates();
 });
 
-// Cleanup on unload
 window.addEventListener('beforeunload', () => {
   HybridCountdown.stop();
   if (fetchAbortController) fetchAbortController.abort();
